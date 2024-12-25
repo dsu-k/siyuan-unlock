@@ -57,13 +57,6 @@ jobs:
         GOPATH: ${{ github.workspace }}/go
         GOARCH: ${{ matrix.config.goarch }}
 
-- name: Generate Icon Resource and Properties/Version Info For Windows
-  shell: powershell
-  run: |
-    $gopath = go env GOPATH
-    & "$gopath\bin\goversioninfo.exe" -platform-specific=true -icon="resource\icon.ico" -manifest="resource\goversioninfo.exe.manifest"
-  working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel
-
     - name: Set up Node
       uses: actions/setup-node@v4
       with:
@@ -91,11 +84,15 @@ jobs:
       with:
         path: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app/kernel
 
+    
     - name: Generate Icon Resource and Properties/Version Info For Windows
-      run: goversioninfo -platform-specific=true -icon="resource\icon.ico" -manifest="resource\goversioninfo.exe.manifest"
-      shell: bash
+      shell: powershell
+      run: |
+        $gopath = go env GOPATH
+        & "$gopath\bin\goversioninfo.exe" -platform-specific=true -icon="resource\icon.ico" -manifest="resource\goversioninfo.exe.manifest"
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel
-      
+    
+
     - name: Building Kernel
       run: go build --tags fts5 -o "${{ matrix.config.kernel_path }}" -v -ldflags "${{ matrix.config.build_args_prefix }} github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel/util.${{ matrix.config.build_args_suffix }}"
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel
