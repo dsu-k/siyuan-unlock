@@ -45,7 +45,8 @@ jobs:
     - name: Set up goversioninfo
       run: |
         go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
-        echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+        echo "${{ github.workspace }}/go/bin" >> $GITHUB_PATH
+      shell: bash
       if: "contains(matrix.config.goos, 'windows')"
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel
       env:
@@ -83,9 +84,10 @@ jobs:
         path: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app/kernel
 
     - name: Generate Icon Resource and Properties/Version Info For Windows
-      run: ${{ github.workspace }}\go\${{ matrix.config.gobin }}\goversioninfo -platform-specific=true -icon="resource\icon.ico" -manifest="resource\goversioninfo.exe.manifest"
+      run: goversioninfo -platform-specific=true -icon="resource\icon.ico" -manifest="resource\goversioninfo.exe.manifest"
+      shell: bash
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel
-    
+      
     - name: Building Kernel
       run: go build --tags fts5 -o "${{ matrix.config.kernel_path }}" -v -ldflags "${{ matrix.config.build_args_prefix }} github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel/util.${{ matrix.config.build_args_suffix }}"
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel
