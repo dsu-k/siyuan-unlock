@@ -57,16 +57,16 @@ jobs:
       with:
         node-version: 20
 
-    - name: Install Node npm
-      run: npm install -g ${{ needs.create_release.outputs.packageManager }}
+    - name: Install pnpm
+      run: npm install -g pnpm
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app
 
     - name: Install Node Dependencies
-      run: npm install --no-frozen-lockfile
+      run: pnpm install --no-frozen-lockfile
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app
 
     - name: Building UI
-      run: npm run build
+      run: pnpm run build
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app
 
     - name: Remove Build Directory
@@ -94,7 +94,7 @@ jobs:
         GOARCH: ${{ matrix.config.goarch }}
       
     - name: Building Electron App
-      run: npm run ${{ matrix.config.electron_args }}
+      run: pnpm run ${{ matrix.config.electron_args }}
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app
 
     - name: Upload Release
