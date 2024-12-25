@@ -5,7 +5,7 @@ on:
 
 env:
   repo_name: "siyuan-unlock"
-  repo_owner: "appdev"
+  repo_owner: "dsu-k"
   package_json: "app/package.json"
 
 jobs:
