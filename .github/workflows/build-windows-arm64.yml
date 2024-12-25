@@ -43,7 +43,10 @@ jobs:
     - run: go version
 
     - name: Set up goversioninfo
-      run: go get github.com/josephspurrier/goversioninfo/cmd/goversioninfo && go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo
+      run: |
+        go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
+        export PATH=$PATH:$(go env GOPATH)/bin
+      if: "contains( matrix.config.goos, 'windows')"
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel
       env:
         GO111MODULE: on
