@@ -45,16 +45,15 @@ jobs:
     - name: Set up goversioninfo
       shell: powershell
       run: |
+        $env:GOPATH = "${{ github.workspace }}/go"
         go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
-        $gopath = go env GOPATH
-        echo "$gopath\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        echo "${{ github.workspace }}/go/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       if: "contains(matrix.config.goos, 'windows')"
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel
       env:
         GO111MODULE: on
         CGO_ENABLED: 1
         GOOS: ${{ matrix.config.goos }}
-        GOPATH: ${{ github.workspace }}/go
         GOARCH: ${{ matrix.config.goarch }}
 
     - name: Set up Node
@@ -88,10 +87,15 @@ jobs:
     - name: Generate Icon Resource and Properties/Version Info For Windows
       shell: powershell
       run: |
-        $gopath = go env GOPATH
-        & "$gopath\bin\goversioninfo.exe" -platform-specific=true -icon="resource\icon.ico" -manifest="resource\goversioninfo.exe.manifest"
+        $env:PATH += ";${{ github.workspace }}/go/bin"
+        if (Test-Path "${{ github.workspace }}/go/bin/goversioninfo.exe") {
+            Write-Host "goversioninfo.exe exists"
+        } else {
+            Write-Host "goversioninfo.exe does not exist"
+            Get-ChildItem "${{ github.workspace }}/go/bin"
+        }
+        & "${{ github.workspace }}/go/bin/goversioninfo.exe" -platform-specific=true -icon="resource\icon.ico" -manifest="resource\goversioninfo.exe.manifest"
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel
-    
 
     - name: Building Kernel
       run: go build --tags fts5 -o "${{ matrix.config.kernel_path }}" -v -ldflags "${{ matrix.config.build_args_prefix }} github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel/util.${{ matrix.config.build_args_suffix }}"
