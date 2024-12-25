@@ -32,8 +32,9 @@ jobs:
 
     - name: Set up MingGW
       uses: msys2/setup-msys2@v2
+      if: "contains(matrix.config.goos, 'windows')"
       with:
-        install: p7zip mingw-w64-x86_64-lua
+        install: p7zip mingw-w64-arm-lua
 
     - name: Set up Go
       uses: actions/setup-go@v5
