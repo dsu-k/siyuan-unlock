@@ -1,61 +1,21 @@
+name: Build Win-Arm64
+
+on:
+  workflow_dispatch:
+
+env:
+  repo_name: "siyuan-unlock"
+  repo_owner: "dsu-k"
+  package_json: "app/package.json"
+
 jobs:
-  build:
-    runs-on: ${{ matrix.config.os }}
-    name: ${{ matrix.config.name }}
-    needs: create_release
+  build_win_arm64:
+    runs-on: windows-latest
+    name: windows build win-arm64.exe
     strategy:
       matrix:
         config:
-          - os: ubuntu-20.04
-            name: ubuntu build linux.AppImage
-            kernel_path: "../app/kernel-linux/SiYuan-Kernel"
-            build_args_prefix: "-s -w -X"
-            build_args_suffix: "Mode=prod"
-            electron_args: "dist-linux"
-            goos: "linux"
-            goarch: "amd64"
-            suffix: "linux.AppImage"
-          - os: ubuntu-20.04
-            name: ubuntu build linux.tar.gz
-            kernel_path: "../app/kernel-linux/SiYuan-Kernel"
-            build_args_prefix: "-s -w -X"
-            build_args_suffix: "Mode=prod"
-            electron_args: "dist-linux"
-            goos: "linux"
-            goarch: "amd64"
-            suffix: "linux.tar.gz"
-          - os: macos-latest
-            name: macos build mac.dmg
-            kernel_path: "../app/kernel-darwin/SiYuan-Kernel"
-            build_args_prefix: "-s -w -X"
-            build_args_suffix: "Mode=prod"
-            electron_args: "dist-darwin"
-            goos: "darwin"
-            goarch: "amd64"
-            suffix: "mac.dmg"
-          - os: macos-latest
-            name: macos build mac-arm64.dmg
-            kernel_path: "../app/kernel-darwin-arm64/SiYuan-Kernel"
-            build_args_prefix: "-s -w -X"
-            build_args_suffix: "Mode=prod"
-            electron_args: "dist-darwin-arm64"
-            goos: "darwin"
-            goarch: "arm64"
-            suffix: "mac-arm64.dmg"
-          - os: windows-latest
-            name: windows build win.exe
-            kernel_path: "../app/kernel/SiYuan-Kernel.exe"
-            build_args_prefix: "-s -w -H=windowsgui -X"
-            build_args_suffix: "Mode=prod"
-            electron_args: "dist"
-            goos: "windows"
-            gobin: "bin"
-            mingwsys: "MINGW64"
-            goarch: "amd64"
-            suffix: "win.exe"
-          - os: windows-latest
-            name: windows build win-arm64.exe
-            kernel_path: "../app/kernel/SiYuan-Kernel.exe"
+          - kernel_path: "../app/kernel/SiYuan-Kernel.exe"
             build_args_prefix: "-s -w -H=windowsgui -X"
             build_args_suffix: "Mode=prod"
             electron_args: "dist"
@@ -74,18 +34,19 @@ jobs:
       uses: msys2/setup-msys2@v2
       if: "contains(matrix.config.goos, 'windows')"
       with:
-        install: p7zip mingw-w64-x86_64-lua
-        install: mingw-w64-aarch64-lua
+        install: p7zip mingw-w64-aarch64-lua
 
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23'  # Specify the Go version you need
+        go-version: '1.23'
         check-latest: true
     - run: go version
 
     - name: Set up goversioninfo
-      run: go get github.com/josephspurrier/goversioninfo/cmd/goversioninfo && go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo
+      run: |
+        go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
+        echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
       if: "contains(matrix.config.goos, 'windows')"
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel
       env:
@@ -100,16 +61,16 @@ jobs:
       with:
         node-version: 20
 
-    - name: Install Node npm
-      run: npm install -g ${{ needs.create_release.outputs.packageManager }}
+    - name: Install pnpm
+      run: npm install -g pnpm
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app
 
     - name: Install Node Dependencies
-      run: npm install --no-frozen-lockfile
+      run: pnpm install --no-frozen-lockfile
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app
 
     - name: Building UI
-      run: npm run build
+      run: pnpm run build
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app
 
     - name: Remove Build Directory
@@ -117,31 +78,24 @@ jobs:
       with:
         path: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app/build
 
-    - name: Remove Kernel Directory for Linux
-      uses: JesseTG/rm@v1.0.2
-      with:
-        path: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app/kernel-linux
-
     - name: Remove Kernel Directory for Windows
       uses: JesseTG/rm@v1.0.2
       with:
         path: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app/kernel
 
-    - name: Remove Kernel Directory for macOS
-      uses: JesseTG/rm@v1.0.2
-      with:
-        path: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app/kernel-darwin
-
-    - name: Remove Kernel Directory for macOS ARM64
-      uses: JesseTG/rm@v1.0.2
-      with:
-        path: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app/kernel-darwin-arm64
-
     - name: Generate Icon Resource and Properties/Version Info For Windows
-      run: ${{ github.workspace }}\go\${{ matrix.config.gobin }}\goversioninfo -platform-specific=true -icon="resource\icon.ico" -manifest="resource\goversioninfo.exe.manifest"
-      if: "contains(matrix.config.goos, 'windows')"
+      shell: powershell
+      run: |
+        $env:PATH += ";${{ github.workspace }}/go/bin"
+        if (Test-Path "${{ github.workspace }}/go/bin/goversioninfo.exe") {
+            Write-Host "goversioninfo.exe exists"
+        } else {
+            Write-Host "goversioninfo.exe does not exist"
+            Get-ChildItem "${{ github.workspace }}/go/bin"
+        }
+        & "${{ github.workspace }}/go/bin/goversioninfo.exe" -platform-specific=true -icon="resource\icon.ico" -manifest="resource\goversioninfo.exe.manifest"
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel
-    
+
     - name: Building Kernel
       run: go build --tags fts5 -o "${{ matrix.config.kernel_path }}" -v -ldflags "${{ matrix.config.build_args_prefix }} github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel/util.${{ matrix.config.build_args_suffix }}"
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel
@@ -151,9 +105,9 @@ jobs:
         GOOS: ${{ matrix.config.goos }}
         GOPATH: ${{ github.workspace }}/go
         GOARCH: ${{ matrix.config.goarch }}
-      
+
     - name: Building Electron App
-      run: npm run ${{ matrix.config.electron_args }}
+      run: pnpm run ${{ matrix.config.electron_args }}
       working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app
 
     - name: Upload Release
