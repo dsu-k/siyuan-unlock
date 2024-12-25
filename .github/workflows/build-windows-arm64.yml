@@ -1,1 +1,108 @@
+name: Build Win-Arm64
 
+on:
+  workflow_dispatch:
+
+env:
+  repo_name: "siyuan-unlock"
+  repo_owner: "appdev"
+  package_json: "app/package.json"
+
+jobs:
+  build_win_arm64:
+    runs-on: windows-latest
+    name: windows build win-arm64.exe
+    strategy:
+      matrix:
+        config:
+          - kernel_path: "../app/kernel/SiYuan-Kernel.exe"
+            build_args_prefix: "-s -w -H=windowsgui -X"
+            build_args_suffix: "Mode=prod"
+            electron_args: "dist"
+            goos: "windows"
+            gobin: "bin"
+            mingwsys: "MINGW64"
+            goarch: "arm64"
+            suffix: "win-arm64.exe"
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        path: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}
+
+    - name: Set up MingGW
+      uses: msys2/setup-msys2@v2
+      with:
+        install: p7zip mingw-w64-x86_64-lua
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+        check-latest: true
+    - run: go version
+
+    - name: Set up goversioninfo
+      run: go get github.com/josephspurrier/goversioninfo/cmd/goversioninfo && go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo
+      working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel
+      env:
+        GO111MODULE: on
+        CGO_ENABLED: 1
+        GOOS: ${{ matrix.config.goos }}
+        GOPATH: ${{ github.workspace }}/go
+        GOARCH: ${{ matrix.config.goarch }}
+
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install Node npm
+      run: npm install -g ${{ needs.create_release.outputs.packageManager }}
+      working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app
+
+    - name: Install Node Dependencies
+      run: npm install --no-frozen-lockfile
+      working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app
+
+    - name: Building UI
+      run: npm run build
+      working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app
+
+    - name: Remove Build Directory
+      uses: JesseTG/rm@v1.0.2
+      with:
+        path: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app/build
+
+    - name: Remove Kernel Directory for Windows
+      uses: JesseTG/rm@v1.0.2
+      with:
+        path: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app/kernel
+
+    - name: Generate Icon Resource and Properties/Version Info For Windows
+      run: ${{ github.workspace }}\go\${{ matrix.config.gobin }}\goversioninfo -platform-specific=true -icon="resource\icon.ico" -manifest="resource\goversioninfo.exe.manifest"
+      working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel
+    
+    - name: Building Kernel
+      run: go build --tags fts5 -o "${{ matrix.config.kernel_path }}" -v -ldflags "${{ matrix.config.build_args_prefix }} github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel/util.${{ matrix.config.build_args_suffix }}"
+      working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/kernel
+      env:
+        GO111MODULE: on
+        CGO_ENABLED: 1
+        GOOS: ${{ matrix.config.goos }}
+        GOPATH: ${{ github.workspace }}/go
+        GOARCH: ${{ matrix.config.goarch }}
+      
+    - name: Building Electron App
+      run: npm run ${{ matrix.config.electron_args }}
+      working-directory: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app
+
+    - name: Upload Release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create_release.outputs.upload_url }}
+        asset_name: siyuan-v${{ needs.create_release.outputs.version }}-${{ matrix.config.suffix }}
+        asset_path: ${{ github.workspace }}/go/src/github.com/${{ env.repo_owner }}/${{ env.repo_name }}/app/build/siyuan-${{ needs.create_release.outputs.version }}-${{ matrix.config.suffix }}
+        asset_content_type: application/octet-stream
