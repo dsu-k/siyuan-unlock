@@ -1,14 +1,3 @@
-name: CD For SiYuan Unlock
-
-on:
-  workflow_dispatch:
-
-env:
-  repo_name_android: "siyuan-android"
-  repo_name: "siyuan-unlock"
-  repo_owner: "appdev"
-  package_json: "app/package.json"
-  
 jobs:
   build:
     runs-on: ${{ matrix.config.os }}
